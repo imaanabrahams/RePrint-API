@@ -1,12 +1,12 @@
-import pool from '../config/db'
+import pool from '../config/db.js'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 
-exports.register = async (req,res)=>{
+export const  register= async (req,res)=>{
     try{
         const {name,email,password,phone,address}= req.body
 
-        if (!name || !email || password){
+        if (!name || !email || !password){
             return res.status(400).json({error:'Name,email, and password are required'})
 
         }
@@ -17,7 +17,7 @@ exports.register = async (req,res)=>{
         }
         const hashedPassword = await bcrypt.hash(password,10)
         const [result] = await pool.query(
-            'INSERT INTO users (name,email,password,phone,ddress) VALUES (?,?,?,?,?)',
+            'INSERT INTO users (name,email,password,phone,address) VALUES (?,?,?,?,?)',
             [name,email,hashedPassword,phone || null, address || null]
         )
 
@@ -28,7 +28,7 @@ exports.register = async (req,res)=>{
     }
 }
 
-exports.login = async (req,res)=>{
+export const login = async (req,res)=>{
     try{
         const {email,password} = req.body
         if (!email || !password) {
@@ -36,7 +36,7 @@ exports.login = async (req,res)=>{
 
         }
 
-        const [rows] = await pool.query('SELECT * FROM usersWHERE email = ?',[email])
+        const [rows] = await pool.query('SELECT * FROM users WHERE email = ?',[email])
         if (rows.length === 0 ){
             return res.status(401).json({error:'Invalid email or password'})
 
@@ -50,7 +50,7 @@ exports.login = async (req,res)=>{
         const token = jwt.sign(
             {id:user.id, email:user.email, role: user.role},
             process.env.JWT_SECRET,
-            {expiresIn:'7 days'}
+            {expiresIn:'7d'}
         )
         res.json({
             token,

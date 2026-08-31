@@ -11,5 +11,5 @@ const pool = mysql.createPool({
 
 })
 
-module.exports=pool
+export default pool
    
