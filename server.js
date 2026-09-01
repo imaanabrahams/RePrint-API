@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import orderRoutes from './routes/orderRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -20,4 +21,5 @@ app.use('/api/shifts', shiftRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 
-app.listen(3000, () => console.log('Server is running on http://localhost:3000'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server is running on http://localhost:${PORT}`));
