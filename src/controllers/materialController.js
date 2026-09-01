@@ -2,7 +2,7 @@ import pool from '../config/db.js'
 
 export const getAllMaterials = async (req, res) =>{
     try{
-        const [rows] = await pool.query('SELECT * FROM material')
+        const [rows] = await pool.query('SELECT * FROM materials')
         res.json(rows)
     }catch (err){
         console.error('GET MATERIALS ERROR:',err)

@@ -12,13 +12,14 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+
 app.get('/',(req,res)=>{
     res.json({message:'RePrint is running'})
 })
 
 
 app.use('/api/products',productRoutes)
-
+app.use('/api/materials',materialRoutes)
 app.use('/api/designs', designRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/wishlist', wishlistRoutes)
