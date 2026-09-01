@@ -19,7 +19,7 @@ export const register = async (req, res) => {
 
     const token = jwt.sign(
       { id: userId, email, role: newUserRole, isEmployee: false },
-      process.env.JWT_SECRET || 'secretkey',
+      process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
 
@@ -59,7 +59,7 @@ export const login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, isEmployee },
-      process.env.JWT_SECRET || 'secretkey',
+      process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
