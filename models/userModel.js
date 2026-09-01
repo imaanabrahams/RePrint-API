@@ -17,3 +17,14 @@ export const createUser = async (name, email, hashedPassword, role = 'customer',
   );
   return result.insertId;
 };
+
+// Add these two functions below:
+export const findUserById = async (id) => {
+  const [rows] = await pool.query('SELECT id, name, email, role, phone, address FROM users WHERE id = ?', [id]);
+  return rows[0];
+};
+
+export const getOrdersByUserId = async (userId) => {
+  const [rows] = await pool.query('SELECT * FROM orders WHERE user_id = ?', [userId]);
+  return rows;
+};
