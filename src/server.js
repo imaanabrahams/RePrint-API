@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import orderRoutes from './routes/orderRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import invoiceRoutes from './routes/invoiceRoutes.js';
@@ -10,7 +11,17 @@ import userRoutes from './routes/userRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 
 const app = express();
+
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'RePrint API is running' });
+});
 
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -20,6 +31,11 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/shifts', shiftRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Internal server error' });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server is running on http://localhost:${PORT}`));
