@@ -25,17 +25,17 @@ export const getDesignById = async (req, res) => {
 
 export const createDesign = async (req, res) => {
   try {
-    const { user_id, name, description, file_url, product_id, material_id, dimensions, customizations, estimated_price, preview_url } = req.body
+    const { name, description, file_url, product_id, material_id, dimensions, customizations, estimated_price, preview_url } = req.body
 
-    if (!user_id || !name) {
-      return res.status(400).json({ error: 'user_id and name are required' })
+    if (!req.user) {
+      return res.status(400).json({ error: 'Authentication required' })
     }
 
     const [result] = await pool.query(
       `INSERT INTO designs (user_id, name, description, file_url, product_id, material_id, dimensions, customizations, estimated_price, preview_url)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        user_id,
+        req.user.id,
         name,
         description || null,
         file_url || null,
