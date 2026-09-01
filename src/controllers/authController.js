@@ -20,7 +20,7 @@ export const register = async (req, res) => {
     const token = jwt.sign(
       { id: userId, email, role: newUserRole, isEmployee: false },
       process.env.JWT_SECRET || 'secretkey',
-      { expiresIn: '30d' }
+      { expiresIn: '1d' }
     );
 
     res.status(201).json({
