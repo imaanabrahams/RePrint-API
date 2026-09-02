@@ -38,6 +38,18 @@ Backend API for the RePrint 3D printing e-commerce platform.
    npm run dev
    ```
 
+## Running as one website
+
+This API also serves the built RePrint frontend, so a single server hosts the whole site:
+
+1. Build the frontend (`npm run build` inside `../RePrint`) so `../RePrint/dist` exists.
+2. Start this server (`npm run dev`). It serves:
+   - the API under `http://localhost:5000/api`
+   - product images under `http://localhost:5000/images`
+   - the frontend app at `http://localhost:5000`
+
+For development, the Vite dev server in `../RePrint` proxies `/api` and `/images` to this server on `http://localhost:5000`.
+
 ## Staff accounts
 
 Seed script also registers staff accounts (see `scripts/seed-staff.js`):
