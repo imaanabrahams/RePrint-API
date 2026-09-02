@@ -11,17 +11,19 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/imaanabrahams/RePrint-API.git"
+  "description": "Backend API for RePrint 3D Printing Company",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon src/server.js",
+    "dev": "nodemon src/server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/imaanabrahams/RePrint-API/issues"
-  },
-  "homepage": "https://github.com/imaanabrahams/RePrint-API#readme",
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
