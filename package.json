@@ -5,23 +5,17 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "setup": "node src/utils/setup.js",
+    "seed": "node src/utils/seed.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "express-validator": "^7.3.2",
-    "jsonwebtoken": "^9.0.3",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.24.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
   }
 }
