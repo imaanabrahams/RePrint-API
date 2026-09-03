@@ -20,7 +20,7 @@ const initDB = async () => {
     const conn = await pool.getConnection();
     console.log('Connected to MySQL database');
 
-    const schemaPath = path.join(import.meta.dirname, '../../schema.sql');
+    const schemaPath = path.join(import.meta.dirname, '../../RePrint.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
 
     // Split by semicolons but skip empty statements
