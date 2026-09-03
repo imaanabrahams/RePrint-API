@@ -1,3 +1,4 @@
+
 CREATE DATABASE IF NOT EXISTS reprint_api;
 USE reprint_api;
 
@@ -92,7 +93,6 @@ CREATE TABLE IF NOT EXISTS reviews (
 CREATE TABLE IF NOT EXISTS payments (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_id INT NOT NULL,
-  user_id INT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
   method ENUM('credit_card', 'debit_card', 'paypal', 'stripe', 'bank_transfer') NOT NULL,
   status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
@@ -102,15 +102,13 @@ CREATE TABLE IF NOT EXISTS payments (
   billing_email VARCHAR(255),
   notes TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS invoices (
   id INT AUTO_INCREMENT PRIMARY KEY,
   invoice_number VARCHAR(100) UNIQUE NOT NULL,
   order_id INT NOT NULL,
-  user_id INT NOT NULL,
   subtotal DECIMAL(10,2) NOT NULL,
   tax DECIMAL(10,2) DEFAULT 0,
   discount DECIMAL(10,2) DEFAULT 0,
@@ -119,8 +117,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   due_date DATE,
   paid_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS consultations (
