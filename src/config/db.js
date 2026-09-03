@@ -38,7 +38,7 @@ const initDB = async () => {
     conn.release();
     console.log('MySQL tables initialized');
   } catch (err) {
-    console.error('Database initialization error:', err.message);
+    console.error('Database initialization error:', err);
   }
 };
 
