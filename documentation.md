@@ -25,7 +25,7 @@ The server is initialized in `src/server.js` and mounts the following route grou
 - Express.js
 - MySQL via `mysql2/promise`
 - JWT for authentication
-- `bcryptjs` for password hashing
+- `bcrypt` for password hashing
 - `dotenv` for environment configuration
 
 ---
@@ -161,7 +161,7 @@ or
 
 Password security is handled in the auth controller:
 
-- `bcryptjs` is used to hash passwords with a salt round of `10`.
+- `bcrypt` is used to hash passwords with a salt round of `10`.
 - Passwords are compared during login with `bcrypt.compare()`.
 - The app checks whether a user already exists before creating a new account.
 

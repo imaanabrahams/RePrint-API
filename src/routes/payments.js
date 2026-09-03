@@ -3,6 +3,17 @@ import db from '../config/db.js';
 import { auth, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
+router.get('/summary', auth, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return db.get(
+      "SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE user_id = ? AND status = 'completed'",
+      [req.user.id],
+      (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ total_paid: row.total_paid });
+      }
+    );
+  }
 
 const generateInvoiceNumber = () => {
   const prefix = 'RP';
@@ -205,17 +216,7 @@ router.put('/invoices/:id/pay', auth, (req, res) => {
   );
 });
 
-router.get('/summary', auth, (req, res) => {
-  if (req.user.role !== 'admin') {
-    return db.get(
-      "SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE user_id = ? AND status = 'completed'",
-      [req.user.id],
-      (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ total_paid: row.total_paid });
-      }
-    );
-  }
+
 
   db.all(`
     SELECT
