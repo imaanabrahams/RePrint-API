@@ -19,7 +19,7 @@ Backend API for the RePrint 3D printing e-commerce platform.
    DB_USER=root
    DB_PASSWORD=your_password
    DB_NAME=reprint_api
-   DB_PORT=3306
+   DB_PORT=3307
    JWT_SECRET=your_jwt_secret
    ```
 
