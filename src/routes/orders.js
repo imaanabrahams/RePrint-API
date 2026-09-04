@@ -87,14 +87,14 @@ router.post('/', auth, (req, res) => {
     return new Promise((resolve, reject) => {
       if (design_id) {
         db.get('SELECT estimated_price FROM designs WHERE id = ?', [design_id], (err, row) => {
-          if (err) reject(err);
-          if (!row) reject(new Error('Design not found'));
+          if (err) return reject(err);
+          if (!row) return reject(new Error('Design not found'));
           resolve(row.estimated_price || 0);
         });
       } else {
         db.get('SELECT base_price FROM products WHERE id = ?', [product_id], (err, row) => {
-          if (err) reject(err);
-          if (!row) reject(new Error('Product not found'));
+          if (err) return reject(err);
+          if (!row) return reject(new Error('Product not found'));
           resolve(row.base_price);
         });
       }
@@ -104,7 +104,7 @@ router.post('/', auth, (req, res) => {
   const getMaterialMultiplier = () => {
     return new Promise((resolve, reject) => {
       db.get('SELECT price_per_gram FROM materials WHERE id = ?', [material_id], (err, row) => {
-        if (err) reject(err);
+        if (err) return reject(err);
         if (!row) reject(new Error('Material not found'));
         resolve(row.price_per_gram);
       });

@@ -61,9 +61,8 @@ router.get('/notifications', auth, (req, res) => {
   let sql = 'SELECT * FROM notifications WHERE user_id = ?';
   const params = [req.user.id];
 
-  if (unread_only === 'true') {
-    sql += ' AND read = 0';
-  }
+  if (unread_only === 'true') sql += ' AND `read` = 0';
+  
 
   sql += ' ORDER BY created_at DESC LIMIT 50';
 
@@ -75,7 +74,7 @@ router.get('/notifications', auth, (req, res) => {
 
 router.put('/notifications/:id/read', auth, (req, res) => {
   db.run(
-    'UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?',
+    'UPDATE notifications SET `read` = 1 WHERE id = ? AND user_id = ?',
     [req.params.id, req.user.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
@@ -87,7 +86,7 @@ router.put('/notifications/:id/read', auth, (req, res) => {
 
 router.put('/notifications/read-all', auth, (req, res) => {
   db.run(
-    'UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0',
+    'UPDATE notifications SET `read` = 1 WHERE user_id = ? AND `read` = 0',
     [req.user.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
@@ -133,32 +132,12 @@ router.get('/wishlist', auth, (req, res) => {
   );
 });
 
-router.post('/wishlist/:productId', auth, (req, res) => {
+router.post ('/wishlist/:productId', auth, (req, res) => {
   db.run(
-    'INSERT OR IGNORE INTO wishlist (user_id, product_id) VALUES (?, ?)',
+    'INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)',
     [req.user.id, req.params.productId],
     function (err) {
-      if (err) {
-        if (err.message.includes('no such table')) {
-          db.run(`CREATE TABLE IF NOT EXISTS wishlist (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            product_id INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_id, product_id),
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (product_id) REFERENCES products(id)
-          )`, () => {
-            db.run('INSERT OR IGNORE INTO wishlist (user_id, product_id) VALUES (?, ?)',
-              [req.user.id, req.params.productId], (err2) => {
-                if (err2) return res.status(500).json({ error: err2.message });
-                res.status(201).json({ message: 'Added to wishlist' });
-              });
-          });
-          return;
-        }
-        return res.status(500).json({ error: err.message });
-      }
+      if (err) return res.status(500).json({ error: err.message });
       res.status(201).json({ message: 'Added to wishlist' });
     }
   );

@@ -93,8 +93,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 CREATE TABLE IF NOT EXISTS payments (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_id INT NOT NULL,
+  user_id INT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
-  method ENUM('credit_card', 'debit_card', 'paypal', 'stripe', 'bank_transfer') NOT NULL,
+  method ENUM('credit_card','debit_card','paypal','stripe','bank_transfer') NOT NULL,
   status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
   transaction_id VARCHAR(255),
   card_last4 VARCHAR(4),
@@ -102,7 +103,8 @@ CREATE TABLE IF NOT EXISTS payments (
   billing_email VARCHAR(255),
   notes TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS invoices (
@@ -117,7 +119,8 @@ CREATE TABLE IF NOT EXISTS invoices (
   due_date DATE,
   paid_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (order_id) REFERENCES payments(order_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS consultations (

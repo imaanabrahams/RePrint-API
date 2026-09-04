@@ -83,6 +83,7 @@ router.post('/', auth, (req, res) => {
 
   db.get('SELECT name, email, phone FROM users WHERE id = ?', [req.user.id], (err, user) => {
     if (err) return res.status(500).json({ error: err.message });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     db.run(
       `INSERT INTO consultations (user_id, name, email, phone, topic, description, preferred_date, preferred_time, consultation_type)

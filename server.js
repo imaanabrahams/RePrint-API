@@ -14,6 +14,10 @@ import userRoutes from './src/routes/users.js';
 import hrRoutes from './src/routes/hr.js';
 import paymentRoutes from './src/routes/payments.js';
 import consultationRoutes from './src/routes/consultations.js';
+import notificationRoutes from './src/routes/notifications.js';
+import wishlistRoutes from './src/routes/wishlist.js';
+import invoiceRoutes from './src/routes/invoices.js';
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,7 +25,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/invoices', invoiceRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/materials', materialRoutes);

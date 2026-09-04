@@ -15,6 +15,29 @@ router.get('/summary', auth, (req, res) => {
     );
   }
 
+
+  db.all(`
+    SELECT
+      COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) as total_revenue,
+      COALESCE(SUM(CASE WHEN status = 'refunded' THEN amount ELSE 0 END), 0) as total_refunds,
+      COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_payments,
+      COUNT(*) as total_transactions,
+      COALESCE(AVG(CASE WHEN status = 'completed' THEN amount END), 0) as avg_transaction
+    FROM payments
+  `, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    db.all(`
+      SELECT method, COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+      FROM payments WHERE status = 'completed'
+      GROUP BY method
+    `, (err2, methods) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      res.json({ ...rows[0], by_method: methods });
+    });
+  });
+});
+
 const generateInvoiceNumber = () => {
   const prefix = 'RP';
   const timestamp = Date.now().toString(36).toUpperCase();
@@ -217,27 +240,5 @@ router.put('/invoices/:id/pay', auth, (req, res) => {
 });
 
 
-
-  db.all(`
-    SELECT
-      COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) as total_revenue,
-      COALESCE(SUM(CASE WHEN status = 'refunded' THEN amount ELSE 0 END), 0) as total_refunds,
-      COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_payments,
-      COUNT(*) as total_transactions,
-      COALESCE(AVG(CASE WHEN status = 'completed' THEN amount END), 0) as avg_transaction
-    FROM payments
-  `, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-
-    db.all(`
-      SELECT method, COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-      FROM payments WHERE status = 'completed'
-      GROUP BY method
-    `, (err2, methods) => {
-      if (err2) return res.status(500).json({ error: err2.message });
-      res.json({ ...rows[0], by_method: methods });
-    });
-  });
-});
 
 export default router;
