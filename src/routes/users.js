@@ -134,7 +134,7 @@ router.get('/wishlist', auth, (req, res) => {
 
 router.post ('/wishlist/:productId', auth, (req, res) => {
   db.run(
-    'INSERT INTO IGNORE wishlist (user_id, product_id) VALUES (?, ?)',
+    'INSERT IGNORE INTO  wishlist (user_id, product_id) VALUES (?, ?)',
     [req.user.id, req.params.productId],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });

@@ -106,7 +106,7 @@ router.post('/', auth, (req, res) => {
       db.get('SELECT price_per_gram FROM materials WHERE id = ?', [material_id], (err, row) => {
         if (err) return reject(err);
         if (!row) return reject(new Error('Material not found'));
-        if (!row) return reject (new Error('Material not found'));
+        
         resolve(row.price_per_gram);
       });
     });
