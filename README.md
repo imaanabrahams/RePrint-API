@@ -28,9 +28,10 @@ Backend API for the RePrint 3D printing e-commerce platform.
    mysql -u root -p < schema.sql
    ```
 
-4. Seed the database:
+4. Seed the database (idempotent, safe to re-run):
    ```
-   node src/utils/seed.js
+   node src/seeds/seed.js
+   node src/seeds/seed-staff.js
    ```
 
 5. Start the server:
@@ -52,13 +53,22 @@ For development, the Vite dev server in `../RePrint` proxies `/api` and `/images
 
 ## Staff accounts
 
-Seed script also registers staff accounts (see `scripts/seed-staff.js`):
+`node src/seeds/seed-staff.js` registers a login for every employee (see `src/seeds/seed-staff.js`):
 
-| Employee ID | Email                    | Password  |
-|-------------|--------------------------|-----------|
-| EMP-001     | aisha.d@reprint.co.za    | staff123  |
-| EMP-002     | thabo.m@reprint.co.za    | staff123  |
-| EMP-003     | chantelle.a@reprint.co.za| staff123  |
+| Employee ID | Email                    | Password |
+|-------------|--------------------------|----------|
+| EMP-001     | aisha.d@reprint.co.za    | staff123 |
+| EMP-002     | thabo.m@reprint.co.za    | staff123 |
+| EMP-003     | chantelle.a@reprint.co.za| staff123 |
+| EMP-004     | kyle.b@reprint.co.za     | staff123 |
+| EMP-005     | naledi.d@reprint.co.za   | staff123 |
+| EMP-006     | pieter.v@reprint.co.za   | staff123 |
+| EMP-007     | zanele.n@reprint.co.za   | staff123 |
+| EMP-008     | tyler.j@reprint.co.za    | staff123 |
+| EMP-009     | megan.f@reprint.co.za    | staff123 |
+| EMP-010     | gift.m@reprint.co.za     | staff123 |
+
+> Or run `npm run seed:all` to run the base seed, staff accounts and everything in one go.
 
 ## API routes
 
