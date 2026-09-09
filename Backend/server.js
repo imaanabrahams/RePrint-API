@@ -18,7 +18,6 @@ import marketingRoutes from "./src/routes/marketing.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const welcomeMessage = "Welcome to RePrint, begin creating...";
 
 app.use(cors());
 app.use(express.json());
@@ -37,15 +36,16 @@ app.use("/api/consultations", consultationRoutes);
 app.use("/api/marketing", marketingRoutes);
 
 app.get("/", (req, res) => {
-  res.send(welcomeMessage);
-});
-
-app.get("/api", (req, res) => {
-  res.send(welcomeMessage);
+  res.send("Welcome to RePrint begin creating...");
 });
 
 app.get("/api/health", (req, res) => {
-  res.send(welcomeMessage);
+  res.json({
+    status: "running",
+    service: "RePrint 3D API",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Product images (copied from the frontend assets)
@@ -73,7 +73,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`
   ============================================
-    ${welcomeMessage}
+    Welcome to RePrint begin creating...
     RePrint 3D API Server
     Running on http://localhost:${PORT}
     API Base: http://localhost:${PORT}/api
