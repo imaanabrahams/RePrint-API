@@ -48,6 +48,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Root route: return a running status when the built frontend is not present,
+// otherwise fall through so the static file server can serve index.html.
+app.get('/', (req, res, next) => {
+  const clientDist = path.join(import.meta.dirname, '..', 'RePrint', 'dist');
+  if (fs.existsSync(clientDist)) return next();
+  res.json({
+    status: 'running',
+    service: 'RePrint 3D API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    docs: '/api/health',
+  });
+});
+
 // Product images (copied from the frontend assets)
 app.use('/images', express.static(path.join(import.meta.dirname, 'public', 'images')));
 
