@@ -10,7 +10,12 @@ CREATE TABLE IF NOT EXISTS users (
   role ENUM('customer', 'admin') DEFAULT 'customer',
   phone VARCHAR(50),
   address TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  email_verified BOOLEAN DEFAULT FALSE,
+  verification_token VARCHAR(255),
+  verification_token_expires DATETIME,
+  reset_token VARCHAR(255),
+  reset_token_expires DATETIME,
 );
 
 CREATE TABLE IF NOT EXISTS materials (
@@ -95,9 +100,12 @@ CREATE TABLE IF NOT EXISTS payments (
   order_id INT NOT NULL,
   user_id INT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
-  method ENUM('credit_card','debit_card','paypal','stripe','bank_transfer') NOT NULL,
+  method ENUM('credit_card','debit_card','paypal','stripe','bank_transfer','payfast') NOT NULL,
   status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
   transaction_id VARCHAR(255),
+  pf_payment_id VARCHAR(255),
+  gateway_response JSON,
+  order_ids JSON,
   card_last4 VARCHAR(4),
   billing_name VARCHAR(255),
   billing_email VARCHAR(255),
