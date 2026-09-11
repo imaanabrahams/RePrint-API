@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
@@ -195,3 +195,10 @@ CREATE TABLE IF NOT EXISTS wishlist (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
+
+-- incremental migrations (safe to re-run — initDB skips duplicate-column errors)
+ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN verification_token VARCHAR(255);
+ALTER TABLE users ADD COLUMN reset_token VARCHAR(255);
+ALTER TABLE users ADD COLUMN reset_token_expires DATETIME;
+ALTER TABLE payments MODIFY COLUMN method ENUM('credit_card','debit_card','paypal','stripe','bank_transfer','payfast') NOT NULL;

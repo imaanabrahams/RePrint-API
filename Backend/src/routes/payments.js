@@ -239,6 +239,81 @@ router.put('/invoices/:id/pay', auth, (req, res) => {
   );
 });
 
+// ---- PayFast sandbox simulation ----
+
+router.post('/payfast/initiate', auth, (req, res) => {
+  const { order_id } = req.body;
+  if (!order_id) return res.status(400).json({ error: 'order_id is required' });
+
+  db.get(
+    'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+    [order_id, req.user.id],
+    (err, order) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!order) return res.status(404).json({ error: 'Order not found' });
+
+      const paymentId = `PF-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      db.run(
+        `INSERT INTO payments (order_id, user_id, amount, method, status, transaction_id, billing_name, billing_email)
+         VALUES (?, ?, ?, 'payfast', 'pending', ?, ?, ?)`,
+        [order_id, req.user.id, order.total_price, paymentId, req.user.email, req.user.email],
+        function (err2) {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.status(201).json({ payment_id: paymentId, amount: order.total_price });
+        }
+      );
+    }
+  );
+});
+
+router.post('/payfast/simulate', auth, (req, res) => {
+  const { m_payment_id, outcome } = req.body;
+  if (!m_payment_id || !outcome) return res.status(400).json({ error: 'm_payment_id and outcome are required' });
+
+  const newStatus = outcome === 'COMPLETE' ? 'completed' : 'failed';
+
+  db.get(
+    'SELECT * FROM payments WHERE transaction_id = ? AND user_id = ?',
+    [m_payment_id, req.user.id],
+    (err, payment) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+      db.run(
+        "UPDATE payments SET status = ?, transaction_id = ? WHERE id = ?",
+        [newStatus, m_payment_id, payment.id],
+        function (err2) {
+          if (err2) return res.status(500).json({ error: err2.message });
+
+          if (newStatus === 'completed') {
+            db.run("UPDATE orders SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [payment.order_id]);
+            db.run(
+              "INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'payment')",
+              [req.user.id, 'Payment Received', `Your payment of ${Number(payment.amount).toFixed(2)} for order #${payment.order_id} was successful.`]
+            );
+          }
+
+          res.json({ status: newStatus, payment_id: m_payment_id });
+        }
+      );
+    }
+  );
+});
+
+router.get('/payfast/status/:paymentId', auth, (req, res) => {
+  db.get(
+    'SELECT status, transaction_id, amount, id, order_id FROM payments WHERE transaction_id = ? AND user_id = ?',
+    [req.params.paymentId, req.user.id],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.status(404).json({ error: 'Payment not found' });
+
+      const transaction_id = `TXN-${row.id}-${Date.now().toString(36).toUpperCase()}`;
+      res.json({ status: row.status, transaction_id, amount: row.amount });
+    }
+  );
+});
+
 
 
 export default router;

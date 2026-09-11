@@ -32,7 +32,15 @@ const initDB = async () => {
     for (const stmt of statements) {
       // Skip USE and CREATE DATABASE statements, handled by setup script
       if (stmt.toUpperCase().startsWith('USE ') || stmt.toUpperCase().startsWith('CREATE DATABASE')) continue;
-      await conn.query(stmt);
+      try {
+        await conn.query(stmt);
+      } catch (e) {
+        if (e.code === 'ER_DUP_FIELDNAME' || e.code === 'ER_DUP_KEYNAME') {
+          // ALTER already applied — safe to skip
+        } else {
+          console.warn('Schema statement skipped:', e.message);
+        }
+      }
     }
 
     conn.release();
