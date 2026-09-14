@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   verification_token VARCHAR(255),
   verification_token_expires DATETIME,
   reset_token VARCHAR(255),
-  reset_token_expires DATETIME,
+  reset_token_expires DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS materials (

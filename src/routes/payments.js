@@ -337,7 +337,11 @@ router.post('/payfast/notify', express.urlencoded({ extended: true }), async (re
       );
     });
 
-    const orderIds = payment.order_ids ? JSON.parse(payment.order_ids) : [payment.order_id];
+    const orderIds = Array.isArray(payment.order_ids)
+    ? payment.order_ids
+    : payment.order_ids
+      ? JSON.parse(payment.order_ids)
+      : [payment.order_id];
 
     if (success) {
       await Promise.all(orderIds.map((id) => new Promise((resolve) => {
