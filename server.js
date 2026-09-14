@@ -14,8 +14,7 @@ import userRoutes from './src/routes/users.js';
 import hrRoutes from './src/routes/hr.js';
 import paymentRoutes from './src/routes/payments.js';
 import consultationRoutes from './src/routes/consultations.js';
-import email from './src/services/email.js';
-import payfast from './src/services/payfast.js';
+
 
 
 
@@ -40,8 +39,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/hr', hrRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/consultations', consultationRoutes);
-app.use('/api/email', email);
-app.use('/api/payfast', payfast);
+
 
 
 app.get('/api/health', (req, res) => {

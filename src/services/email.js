@@ -131,4 +131,3 @@ export async function sendConsultationEmail({ name, email, consultation }) {
   return sendMail({ to: email, subject: 'Consultation request received — RePrint 3D', html });
 }
 
-export default router;
