@@ -7,8 +7,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "setup": "node src/utils/setup.js",
-    "seed": "node src/utils/seed.js"
+    "setup": "node src/seeds/setup.js",
+    "seed": "node src/seeds/seed.js",
+    "seed:staff": "node src/seeds/seed-staff.js",
+    "seed:all": "node src/seeds/bootstrap.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

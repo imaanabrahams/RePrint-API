@@ -8,7 +8,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'reprint_api',
-  port: process.env.DB_PORT || 3306,
+  port: process.env.DB_PORT || 3307,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -20,7 +20,7 @@ const initDB = async () => {
     const conn = await pool.getConnection();
     console.log('Connected to MySQL database');
 
-    const schemaPath = path.join(import.meta.dirname, '../../RePrint.sql');
+    const schemaPath = path.join(import.meta.dirname, '../../schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
 
     // Split by semicolons but skip empty statements
@@ -32,7 +32,15 @@ const initDB = async () => {
     for (const stmt of statements) {
       // Skip USE and CREATE DATABASE statements, handled by setup script
       if (stmt.toUpperCase().startsWith('USE ') || stmt.toUpperCase().startsWith('CREATE DATABASE')) continue;
-      await conn.query(stmt);
+      try {
+        await conn.query(stmt);
+      } catch (e) {
+        if (e.code === 'ER_DUP_FIELDNAME' || e.code === 'ER_DUP_KEYNAME') {
+          // ALTER already applied — safe to skip
+        } else {
+          console.warn('Schema statement skipped:', e.message);
+        }
+      }
     }
 
     conn.release();

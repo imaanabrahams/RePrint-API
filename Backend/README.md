@@ -3,7 +3,7 @@
 Backend API for the RePrint 3D printing e-commerce platform.
 
 - **Stack:** Express, MySQL
-- **Port:** 3306
+- **Port:** 5000
 - **Database:** `reprint_api` (MySQL)
 
 ## Setup

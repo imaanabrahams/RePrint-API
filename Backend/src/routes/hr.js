@@ -149,6 +149,11 @@ router.post('/shifts/bulk', (req, res) => {
 
 router.put('/shifts/:id', (req, res) => {
   const { start_time, end_time, break_minutes, status, notes } = req.body;
+  const validStatuses = ['scheduled', 'confirmed', 'completed', 'missed', 'cancelled'];
+
+  if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+  }
 
   db.run(
     `UPDATE shifts SET
