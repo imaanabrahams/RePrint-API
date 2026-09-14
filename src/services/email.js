@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 let transporterPromise = null;
 let usingEthereal = false;
 
-function buildTransporter() {
+async function buildTransporter() {
   if (process.env.EMAIL_HOST) {
     return Promise.resolve(
       nodemailer.createTransport({
@@ -17,14 +17,13 @@ function buildTransporter() {
     );
   }
   usingEthereal = true;
-  return nodemailer.createTestAccount().then((testAccount) =>
-    nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: { user: testAccount.user, pass: testAccount.pass },
-    })
-  );
+  const testAccount = await nodemailer.createTestAccount();
+  return nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: { user: testAccount.user, pass: testAccount.pass },
+  });
 }
 
 function getTransporter() {
@@ -131,3 +130,5 @@ export async function sendConsultationEmail({ name, email, consultation }) {
   `);
   return sendMail({ to: email, subject: 'Consultation request received — RePrint 3D', html });
 }
+
+export default router;
