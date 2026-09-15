@@ -15,15 +15,32 @@ export function isLocalSimulator() {
   return USE_LOCAL_SIMULATOR;
 }
 
+// PayFast computes/validates signatures server-side using PHP's urlencode(),
+// which escapes a wider set of characters than JS's encodeURIComponent() —
+// notably ! * ' ( ) are left untouched by encodeURIComponent but are percent-
+// encoded by urlencode(). Any field containing one of those (e.g. an
+// apostrophe in a name, or parentheses in an item name) will otherwise
+// produce a signature PayFast rejects as mismatched. This mirrors PHP's
+// urlencode() exactly: RFC 1738 unreserved chars (alphanumeric and - _ .)
+// stay raw, spaces become '+', everything else is percent-encoded.
+function phpUrlEncode(str) {
+  return encodeURIComponent(str)
+    .replace(/%20/g, '+')
+    .replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
 function buildSignature(fields, passphrase = '') {
   let pairs = Object.entries(fields)
     .filter(([, v]) => v !== undefined && v !== null && String(v).length > 0)
-    .map(([k, v]) => `${k}=${encodeURIComponent(String(v).trim()).replace(/%20/g, '+')}`);
+    .map(([k, v]) => `${k}=${phpUrlEncode(String(v).trim())}`);
 
   let str = pairs.join('&');
-  if (passphrase) str += `&passphrase=${encodeURIComponent(passphrase.trim()).replace(/%20/g, '+')}`;
+  if (passphrase) str += `&passphrase=${phpUrlEncode(passphrase.trim())}`;
 
-  return crypto.createHash('md5').update(str).digest('hex');
+  return crypto
+    .createHash('sha512')
+    .update(str)
+    .digest('hex');
 }
 
 export function buildPaymentRequest({ paymentId, amount, itemName, customerName, customerEmail, returnUrl, cancelUrl, notifyUrl }) {
