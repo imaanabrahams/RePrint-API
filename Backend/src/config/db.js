@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import 'dotenv/config';
 
+// Connection pool- reusd across requests instead of opening a new 
+// connection every time, for perfomance
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -14,6 +16,9 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// Runs schema.sql on a startup so tables always exists, even ona frash database.
+// statements are run opne at a time; errors from "already exists"- type
+// issues are safely ignored so this can run repeatedly without harm.
 // Initialize tables on startup
 const initDB = async () => {
   try {
@@ -69,6 +74,7 @@ const db = {
       });
   },
 
+  // fetch all matching rows
   all(sql, params, callback) {
     if (typeof params === 'function') {
       callback = params;
@@ -83,6 +89,7 @@ const db = {
       });
   },
 
+  // Run an INSERT/UPDATE/DELETE 
   run(sql, params, callback) {
     if (typeof params === 'function') {
       callback = params;

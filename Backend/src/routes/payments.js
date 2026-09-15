@@ -8,6 +8,8 @@ const router = express.Router();
 const APP_URL = (process.env.APP_URL || 'http://localhost:5000').replace(/\/$/, '');
 const CLIENT_URL = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
 
+// Fetches an order along with its owner's name/email — used when sending
+// payment receipt emails after a PayFast notification comes in
 const getOrderWithUser = (orderId) => new Promise((resolve, reject) => {
   db.get(
     `SELECT o.*, u.name as customer_name, u.email as customer_email FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?`,
@@ -16,6 +18,8 @@ const getOrderWithUser = (orderId) => new Promise((resolve, reject) => {
   );
 });
 
+// Admin summary: total revenue, refunds, pending amounts, and a
+// breakdown of completed payments by method
 router.get('/stats', auth, adminOnly, (req, res) => {
   db.all(`
     SELECT
@@ -39,6 +43,7 @@ router.get('/stats', auth, adminOnly, (req, res) => {
   });
 });
 
+// Generates a short, unique-ish invoice number, e.g. RP-LX3K9A-B7C2
 const generateInvoiceNumber = () => {
   const prefix = 'RP';
   const timestamp = Date.now().toString(36).toUpperCase();
@@ -46,6 +51,7 @@ const generateInvoiceNumber = () => {
   return `${prefix}-${timestamp}-${random}`;
 };
 
+// List payments — customers see only their own, admins see everyone's
 router.get('/', auth, (req, res) => {
   const { status, page = 1, limit = 10 } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -71,6 +77,7 @@ router.get('/', auth, (req, res) => {
   });
 });
 
+// Single payment detail — customers can only view their own
 router.get('/:id', auth, (req, res) => {
   let sql = `SELECT p.*, o.total_price as order_total, o.id as order_number, u.name as customer_name
     FROM payments p
@@ -91,6 +98,8 @@ router.get('/:id', auth, (req, res) => {
   });
 });
 
+// Simulated card payment — not a real gateway, used for the
+// credit_card/debit_card/etc. checkout path (as opposed to PayFast below)
 router.post('/process', auth, (req, res) => {
   const { order_id, method, card_last4, billing_name, billing_email, notes } = req.body;
 
@@ -109,6 +118,7 @@ router.post('/process', auth, (req, res) => {
     if (order.status === 'cancelled') return res.status(400).json({ error: 'Cannot pay for cancelled order' });
 
     const transaction_id = `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // Simulated outcome: ~95% success rate, so failure handling can be demoed too
     const paymentStatus = Math.random() > 0.05 ? 'completed' : 'failed';
 
     db.run(
@@ -138,6 +148,7 @@ router.post('/process', auth, (req, res) => {
   });
 });
 
+// Refund a completed payment — owner or admin only
 router.post('/refund/:id', auth, (req, res) => {
   const { reason } = req.body;
 
@@ -170,6 +181,7 @@ router.post('/refund/:id', auth, (req, res) => {
   });
 });
 
+// List invoices — customers see only their own, admins see everyone's
 router.get('/invoices/list', auth, (req, res) => {
   let sql = `SELECT i.*, u.name as customer_name, o.id as order_number
     FROM invoices i
@@ -190,6 +202,8 @@ router.get('/invoices/list', auth, (req, res) => {
   });
 });
 
+// Generate an invoice for an order — computes tax/discount/total and
+// sets a due date 30 days out
 router.post('/invoices', auth, (req, res) => {
   const { order_id, tax_rate, discount } = req.body;
 
@@ -240,86 +254,19 @@ router.put('/invoices/:id/pay', auth, (req, res) => {
   );
 });
 
-// ---- PayFast sandbox simulation ----
+// ---- PayFast sandbox flow ----
+// initiate -> creates a pending payment and returns the sandbox redirect
+// fields -> simulate -> fakes a gateway outcome and posts it to notify
+// notify -> the "webhook": verifies the signature and finalizes the payment
 
-router.post('/payfast/initiate', auth, (req, res) => {
-  const { order_id } = req.body;
-  if (!order_id) return res.status(400).json({ error: 'order_id is required' });
-
-  db.get(
-    'SELECT * FROM orders WHERE id = ? AND user_id = ?',
-    [order_id, req.user.id],
-    (err, order) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!order) return res.status(404).json({ error: 'Order not found' });
-
-      const paymentId = `PF-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      db.run(
-        `INSERT INTO payments (order_id, user_id, amount, method, status, transaction_id, billing_name, billing_email)
-         VALUES (?, ?, ?, 'payfast', 'pending', ?, ?, ?)`,
-        [order_id, req.user.id, order.total_price, paymentId, req.user.email, req.user.email],
-        function (err2) {
-          if (err2) return res.status(500).json({ error: err2.message });
-          res.status(201).json({ payment_id: paymentId, amount: order.total_price });
-        }
-      );
-    }
-  );
-});
-
-router.post('/payfast/simulate', auth, (req, res) => {
-  const { m_payment_id, outcome } = req.body;
-  if (!m_payment_id || !outcome) return res.status(400).json({ error: 'm_payment_id and outcome are required' });
-
-  const newStatus = outcome === 'COMPLETE' ? 'completed' : 'failed';
-
-  db.get(
-    'SELECT * FROM payments WHERE transaction_id = ? AND user_id = ?',
-    [m_payment_id, req.user.id],
-    (err, payment) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!payment) return res.status(404).json({ error: 'Payment not found' });
-
-      db.run(
-        "UPDATE payments SET status = ?, transaction_id = ? WHERE id = ?",
-        [newStatus, m_payment_id, payment.id],
-        function (err2) {
-          if (err2) return res.status(500).json({ error: err2.message });
-
-          if (newStatus === 'completed') {
-            db.run("UPDATE orders SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [payment.order_id]);
-            db.run(
-              "INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'payment')",
-              [req.user.id, 'Payment Received', `Your payment of ${Number(payment.amount).toFixed(2)} for order #${payment.order_id} was successful.`]
-            );
-          }
-
-          res.json({ status: newStatus, payment_id: m_payment_id });
-        }
-      );
-    }
-  );
-});
-
-router.get('/payfast/status/:paymentId', auth, (req, res) => {
-  db.get(
-    'SELECT status, transaction_id, amount, id, order_id FROM payments WHERE transaction_id = ? AND user_id = ?',
-    [req.params.paymentId, req.user.id],
-    (err, row) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!row) return res.status(404).json({ error: 'Payment not found' });
-
-      const transaction_id = `TXN-${row.id}-${Date.now().toString(36).toUpperCase()}`;
-      res.json({ status: row.status, transaction_id, amount: row.amount });
-    }
-  );
-});
-  router.post('/payfast/create', auth, async (req, res) => {
-    const orderIds = Array.isArray(req.body.order_ids)
-      ? req.body.order_ids
-      : req.body.order_id
-        ? [req.body.order_id]
-        : [];
+// Start a PayFast payment for one or more orders. Returns the fields/action
+// the frontend needs to redirect the user into the sandbox flow.
+router.post('/payfast/initiate', auth, async (req, res) => {
+  const orderIds = Array.isArray(req.body.order_ids)
+    ? req.body.order_ids
+    : req.body.order_id
+      ? [req.body.order_id]
+      : [];
 
   if (orderIds.length === 0) return res.status(400).json({ error: 'order_ids is required' });
 
@@ -363,7 +310,9 @@ router.get('/payfast/status/:paymentId', auth, (req, res) => {
   }
 });
 
-
+// Fakes a PayFast outcome (used only when PAYFAST_USE_LOCAL_SIMULATOR is on)
+// by building a signed ITN payload and posting it to /notify, exactly like
+// PayFast's real servers would.
 router.post('/payfast/simulate', async (req, res) => {
   const { m_payment_id, outcome } = req.body;
   if (!m_payment_id) return res.status(400).json({ error: 'm_payment_id is required' });
@@ -387,6 +336,8 @@ router.post('/payfast/simulate', async (req, res) => {
   res.json({ ok: true, pf_payment_id, status: payment_status });
 });
 
+// PayFast's ITN webhook. Verifies the signature, marks the payment
+// completed/failed, confirms the linked orders, and emails a receipt.
 router.post('/payfast/notify', express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const body = req.body;
@@ -415,10 +366,10 @@ router.post('/payfast/notify', express.urlencoded({ extended: true }), async (re
     });
 
     const orderIds = Array.isArray(payment.order_ids)
-    ? payment.order_ids
-    : payment.order_ids
-      ? JSON.parse(payment.order_ids)
-      : [payment.order_id];
+      ? payment.order_ids
+      : payment.order_ids
+        ? JSON.parse(payment.order_ids)
+        : [payment.order_id];
 
     if (success) {
       await Promise.all(orderIds.map((id) => new Promise((resolve) => {
@@ -450,6 +401,8 @@ router.post('/payfast/notify', express.urlencoded({ extended: true }), async (re
   }
 });
 
+// Poll the current status of a payment (used while waiting for /notify
+// to finalize it after the simulator or real PayFast redirect)
 router.get('/payfast/status/:paymentId', auth, (req, res) => {
   db.get('SELECT id, status, amount, transaction_id, order_id, order_ids FROM payments WHERE id = ? AND user_id = ?',
     [req.params.paymentId, req.user.id],
