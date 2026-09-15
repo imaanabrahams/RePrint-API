@@ -48,12 +48,12 @@ function calcItemPrice(product_id, design_id, material_id, quantity) {
       if (err) return reject(err);
       if (!row) return reject(new Error(design_id ? 'Design not found' : 'Product not found'));
 
-      const basePrice = design_id ? (row.estimated_price || 0) : row.base_price;
+      const basePrice = design_id ? Number(row.estimated_price || 0) : Number(row.base_price || 0);
 
       db.get('SELECT price_per_gram FROM materials WHERE id = ?', [material_id], (err2, matRow) => {
         if (err2) return reject(err2);
         if (!matRow) return reject(new Error('Material not found'));
-        resolve(parseFloat(((basePrice + matRow.price_per_gram * 50) * quantity).toFixed(2)));
+        resolve(parseFloat(((basePrice + Number(matRow.price_per_gram) * 50) * quantity).toFixed(2)));
       });
     });
   });
@@ -155,13 +155,13 @@ router.post('/', auth, (req, res) => {
         db.get('SELECT estimated_price FROM designs WHERE id = ?', [design_id], (err, row) => {
           if (err) return reject(err);
           if (!row) return reject(new Error('Design not found'));
-          resolve(row.estimated_price || 0);
+          resolve(Number(row.estimated_price || 0));
         });
       } else {
         db.get('SELECT base_price FROM products WHERE id = ?', [product_id], (err, row) => {
           if (err) return reject(err);
           if (!row) return reject(new Error('Product not found'));
-          resolve(row.base_price);
+          resolve(Number(row.base_price) || 0);
         });
       }
     });
@@ -173,7 +173,7 @@ router.post('/', auth, (req, res) => {
         if (err) return reject(err);
         if (!row) return reject(new Error('Material not found'));
         
-        resolve(row.price_per_gram);
+        resolve(Number(row.price_per_gram) || 0);
       });
     });
   };
