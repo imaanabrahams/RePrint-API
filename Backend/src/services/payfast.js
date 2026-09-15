@@ -1,12 +1,19 @@
 import crypto from 'crypto';
+import dns from 'dns/promises';
 
 const MERCHANT_ID = process.env.PAYFAST_MERCHANT_ID || '10000100';
 const MERCHANT_KEY = process.env.PAYFAST_MERCHANT_KEY || '46f0cd694581a';
 const PASSPHRASE = process.env.PAYFAST_PASSPHRASE || '';
 const IS_SANDBOX = process.env.PAYFAST_SANDBOX !== 'false';
-const USE_LOCAL_SIMULATOR = process.env.PAYFAST_USE_LOCAL_SIMULATOR !== 'false';
+const USE_LOCAL_SIMULATOR = process.env.PAYFAST_USE_LOCAL_SIMULATOR === 'true';
 
 export const PAYFAST_HOST = IS_SANDBOX ? 'sandbox.payfast.co.za' : 'www.payfast.co.za';
+
+const PAYFAST_ITN_HOSTS = ['www.payfast.co.za', 'sandbox.payfast.co.za', 'w1w.payfast.co.za', 'w2w.payfast.co.za'];
+
+export function isLocalSimulator() {
+  return USE_LOCAL_SIMULATOR;
+}
 
 function buildSignature(fields, passphrase = '') {
   let pairs = Object.entries(fields)
@@ -58,3 +65,29 @@ export function isConfigured() {
 export function signFields(fields) {
   return buildSignature(fields, PASSPHRASE);
 }
+
+export async function isValidSourceIp(remoteIp) {
+  const ip = (remoteIp || '').replace('::ffff:', '');
+  const results = await Promise.allSettled(PAYFAST_ITN_HOSTS.map((h) => dns.lookup(h, { all: true })));
+  const validIps = results
+    .filter((r) => r.status === 'fulfilled')
+    .flatMap((r) => r.value.map((entry) => entry.address));
+  return validIps.includes(ip);
+}
+
+export async function confirmWithPayfast(rawBody) {
+  try {
+    const res = await fetch(`https://${PAYFAST_HOST}/eng/query/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: rawBody,
+    });
+    const text = (await res.text()).trim();
+    return text === 'VALID';
+  } catch (e) {
+    console.error('[payfast] server-to-server validate call failed:', e.message);
+    return false;
+  }
+}
+
+export { IS_SANDBOX };
