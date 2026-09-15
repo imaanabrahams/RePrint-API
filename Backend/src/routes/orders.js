@@ -38,6 +38,72 @@ router.get('/', auth, (req, res) => {
   });
 });
 
+function calcItemPrice(product_id, design_id, material_id, quantity) {
+  return new Promise((resolve, reject) => {
+    const [sql, params] = design_id
+      ? ['SELECT estimated_price FROM designs WHERE id = ?', [design_id]]
+      : ['SELECT base_price FROM products WHERE id = ?', [product_id]];
+
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return reject(new Error(design_id ? 'Design not found' : 'Product not found'));
+
+      const basePrice = design_id ? (row.estimated_price || 0) : row.base_price;
+
+      db.get('SELECT price_per_gram FROM materials WHERE id = ?', [material_id], (err2, matRow) => {
+        if (err2) return reject(err2);
+        if (!matRow) return reject(new Error('Material not found'));
+        resolve(parseFloat(((basePrice + matRow.price_per_gram * 50) * quantity).toFixed(2)));
+      });
+    });
+  });
+}
+
+router.post('/checkout', auth, async (req, res) => {
+  const { items, shipping_address, notes } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items array is required' });
+  }
+
+  try {
+    const created = [];
+
+    for (const item of items) {
+      const { product_id, design_id, material_id, quantity } = item;
+
+      if (!material_id) throw new Error('Every item needs a material_id');
+      if (!product_id && !design_id) throw new Error('Every item needs a product_id or design_id');
+
+      const qty = parseInt(quantity) || 1;
+      const total_price = await calcItemPrice(product_id, design_id, material_id, qty);
+
+      const orderId = await new Promise((resolve, reject) => {
+        db.run(
+          `INSERT INTO orders (user_id, product_id, design_id, material_id, quantity, total_price, shipping_address, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [req.user.id, product_id || null, design_id || null, material_id, qty, total_price, shipping_address || null, notes || null],
+          function (err) { err ? reject(err) : resolve(this.lastID); }
+        );
+      });
+
+      created.push({ id: orderId, total_price });
+    }
+
+    const combinedTotal = parseFloat(created.reduce((sum, o) => sum + o.total_price, 0).toFixed(2));
+
+    res.status(201).json({
+      order_ids: created.map((o) => o.id),
+      primary_order_id: created[0].id,
+      total_price: combinedTotal,
+      message: 'Order placed successfully',
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+
 router.get('/stats', auth, adminOnly, (req, res) => {
   db.all(`
     SELECT
