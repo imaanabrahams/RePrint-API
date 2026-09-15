@@ -1,15 +1,13 @@
 import express from 'express';
 import db from '../config/db.js';
 import { auth, adminOnly } from '../middleware/auth.js';
-
-import { sendOrderConfirmationEmail, sendPaymentReceiptEmail } from '../services/email.js';
 import { buildPaymentRequest, verifyItnSignature, signFields, isLocalSimulator, isValidSourceIp, confirmWithPayfast } from '../services/payfast.js';
+import { sendOrderConfirmationEmail, sendPaymentReceiptEmail } from '../services/email.js';
+
 const router = express.Router();
 const APP_URL = (process.env.APP_URL || 'http://localhost:5000').replace(/\/$/, '');
 const CLIENT_URL = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
 
-// Fetches an order along with its owner's name/email — used when sending
-// payment receipt emails after a PayFast notification comes in
 const getOrderWithUser = (orderId) => new Promise((resolve, reject) => {
   db.get(
     `SELECT o.*, u.name as customer_name, u.email as customer_email FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?`,
@@ -18,8 +16,6 @@ const getOrderWithUser = (orderId) => new Promise((resolve, reject) => {
   );
 });
 
-// Admin summary: total revenue, refunds, pending amounts, and a
-// breakdown of completed payments by method
 router.get('/stats', auth, adminOnly, (req, res) => {
   db.all(`
     SELECT
@@ -43,7 +39,6 @@ router.get('/stats', auth, adminOnly, (req, res) => {
   });
 });
 
-// Generates a short, unique-ish invoice number, e.g. RP-LX3K9A-B7C2
 const generateInvoiceNumber = () => {
   const prefix = 'RP';
   const timestamp = Date.now().toString(36).toUpperCase();
@@ -51,7 +46,6 @@ const generateInvoiceNumber = () => {
   return `${prefix}-${timestamp}-${random}`;
 };
 
-// List payments — customers see only their own, admins see everyone's
 router.get('/', auth, (req, res) => {
   const { status, page = 1, limit = 10 } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -77,7 +71,6 @@ router.get('/', auth, (req, res) => {
   });
 });
 
-// Single payment detail — customers can only view their own
 router.get('/:id', auth, (req, res) => {
   let sql = `SELECT p.*, o.total_price as order_total, o.id as order_number, u.name as customer_name
     FROM payments p
@@ -98,8 +91,6 @@ router.get('/:id', auth, (req, res) => {
   });
 });
 
-// Simulated card payment — not a real gateway, used for the
-// credit_card/debit_card/etc. checkout path (as opposed to PayFast below)
 router.post('/process', auth, (req, res) => {
   const { order_id, method, card_last4, billing_name, billing_email, notes } = req.body;
 
@@ -118,7 +109,6 @@ router.post('/process', auth, (req, res) => {
     if (order.status === 'cancelled') return res.status(400).json({ error: 'Cannot pay for cancelled order' });
 
     const transaction_id = `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    // Simulated outcome: ~95% success rate, so failure handling can be demoed too
     const paymentStatus = Math.random() > 0.05 ? 'completed' : 'failed';
 
     db.run(
@@ -148,7 +138,6 @@ router.post('/process', auth, (req, res) => {
   });
 });
 
-// Refund a completed payment — owner or admin only
 router.post('/refund/:id', auth, (req, res) => {
   const { reason } = req.body;
 
@@ -181,7 +170,6 @@ router.post('/refund/:id', auth, (req, res) => {
   });
 });
 
-// List invoices — customers see only their own, admins see everyone's
 router.get('/invoices/list', auth, (req, res) => {
   let sql = `SELECT i.*, u.name as customer_name, o.id as order_number
     FROM invoices i
@@ -202,8 +190,6 @@ router.get('/invoices/list', auth, (req, res) => {
   });
 });
 
-// Generate an invoice for an order — computes tax/discount/total and
-// sets a due date 30 days out
 router.post('/invoices', auth, (req, res) => {
   const { order_id, tax_rate, discount } = req.body;
 
@@ -254,13 +240,6 @@ router.put('/invoices/:id/pay', auth, (req, res) => {
   );
 });
 
-// ---- PayFast sandbox flow ----
-// initiate -> creates a pending payment and returns the sandbox redirect
-// fields -> simulate -> fakes a gateway outcome and posts it to notify
-// notify -> the "webhook": verifies the signature and finalizes the payment
-
-// Start a PayFast payment for one or more orders. Returns the fields/action
-// the frontend needs to redirect the user into the sandbox flow.
 router.post('/payfast/initiate', auth, async (req, res) => {
   const orderIds = Array.isArray(req.body.order_ids)
     ? req.body.order_ids
@@ -310,13 +289,7 @@ router.post('/payfast/initiate', auth, async (req, res) => {
   }
 });
 
-// Fakes a PayFast outcome (used only when PAYFAST_USE_LOCAL_SIMULATOR is on)
-// by building a signed ITN payload and posting it to /notify, exactly like
-// PayFast's real servers would.
 router.post('/payfast/simulate', async (req, res) => {
-  // This endpoint fabricates a signed ITN itself, so it must never be
-  // reachable once we're pointing at PayFast's real (sandbox or live)
-  // gateway — otherwise anyone could use it to fake-complete any payment.
   if (!isLocalSimulator()) {
     return res.status(404).json({ error: 'Not found' });
   }
@@ -343,18 +316,13 @@ router.post('/payfast/simulate', async (req, res) => {
   res.json({ ok: true, pf_payment_id, status: payment_status });
 });
 
-// PayFast's ITN webhook. Verifies the signature, marks the payment
-// completed/failed, confirms the linked orders, and emails a receipt.
 router.post('/payfast/notify', express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const body = req.body;
     const local = isLocalSimulator();
 
-    // 1. Signature — always required, no bypass.
     if (!verifyItnSignature(body)) return res.status(400).send('invalid signature');
 
-    // 2 & 3. Only meaningful once we're pointed at PayFast's real gateway;
-    // the local simulator never talks to PayFast so these would always fail.
     if (!local) {
       const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
       if (!(await isValidSourceIp(clientIp))) {
@@ -377,11 +345,8 @@ router.post('/payfast/notify', express.urlencoded({ extended: true }), async (re
     });
 
     if (!payment) return res.status(404).send('payment not found');
-    if (payment.status !== 'pending') return res.status(200).send('already processed'); // also covers ITN retries
+    if (payment.status !== 'pending') return res.status(200).send('already processed');
 
-    // 4. Amount is buyer-influenced en route to PayFast; never trust it
-    // back without comparing it to what we actually charged. (Skipped for
-    // the local simulator, which doesn't send amount data.)
     if (success && !local) {
       const paidGross = Number(body.amount_gross ?? body.amount);
       const expected = Number(payment.amount);
@@ -438,8 +403,6 @@ router.post('/payfast/notify', express.urlencoded({ extended: true }), async (re
   }
 });
 
-// Poll the current status of a payment (used while waiting for /notify
-// to finalize it after the simulator or real PayFast redirect)
 router.get('/payfast/status/:paymentId', auth, (req, res) => {
   db.get('SELECT id, status, amount, transaction_id, order_id, order_ids FROM payments WHERE id = ? AND user_id = ?',
     [req.params.paymentId, req.user.id],
