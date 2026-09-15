@@ -1,9 +1,9 @@
 import express from 'express';
 import db from '../config/db.js';
 import { auth, adminOnly } from '../middleware/auth.js';
-import { buildPaymentRequest, verifyItnSignature, signFields } from '../services/payfast.js';
-import { sendOrderConfirmationEmail, sendPaymentReceiptEmail } from '../services/email.js';
 
+import { sendOrderConfirmationEmail, sendPaymentReceiptEmail } from '../services/email.js';
+import { buildPaymentRequest, verifyItnSignature, signFields, isLocalSimulator, isValidSourceIp, confirmWithPayfast } from '../services/payfast.js';
 const router = express.Router();
 const APP_URL = (process.env.APP_URL || 'http://localhost:5000').replace(/\/$/, '');
 const CLIENT_URL = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
@@ -314,6 +314,13 @@ router.post('/payfast/initiate', auth, async (req, res) => {
 // by building a signed ITN payload and posting it to /notify, exactly like
 // PayFast's real servers would.
 router.post('/payfast/simulate', async (req, res) => {
+  // This endpoint fabricates a signed ITN itself, so it must never be
+  // reachable once we're pointing at PayFast's real (sandbox or live)
+  // gateway — otherwise anyone could use it to fake-complete any payment.
+  if (!isLocalSimulator()) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
   const { m_payment_id, outcome } = req.body;
   if (!m_payment_id) return res.status(400).json({ error: 'm_payment_id is required' });
 
@@ -341,8 +348,26 @@ router.post('/payfast/simulate', async (req, res) => {
 router.post('/payfast/notify', express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const body = req.body;
-    const signatureOk = verifyItnSignature(body) || process.env.PAYFAST_USE_LOCAL_SIMULATOR !== 'false';
-    if (!signatureOk) return res.status(400).send('invalid signature');
+    const local = isLocalSimulator();
+
+    // 1. Signature — always required, no bypass.
+    if (!verifyItnSignature(body)) return res.status(400).send('invalid signature');
+
+    // 2 & 3. Only meaningful once we're pointed at PayFast's real gateway;
+    // the local simulator never talks to PayFast so these would always fail.
+    if (!local) {
+      const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+      if (!(await isValidSourceIp(clientIp))) {
+        console.warn('[payfast] notify rejected: source IP not a PayFast host:', clientIp);
+        return res.status(400).send('invalid source');
+      }
+
+      const confirmed = await confirmWithPayfast(new URLSearchParams(body).toString());
+      if (!confirmed) {
+        console.warn('[payfast] notify rejected: PayFast did not confirm this ITN as VALID');
+        return res.status(400).send('not confirmed');
+      }
+    }
 
     const paymentId = body.m_payment_id;
     const success = body.payment_status === 'COMPLETE';
@@ -352,7 +377,19 @@ router.post('/payfast/notify', express.urlencoded({ extended: true }), async (re
     });
 
     if (!payment) return res.status(404).send('payment not found');
-    if (payment.status !== 'pending') return res.status(200).send('already processed');
+    if (payment.status !== 'pending') return res.status(200).send('already processed'); // also covers ITN retries
+
+    // 4. Amount is buyer-influenced en route to PayFast; never trust it
+    // back without comparing it to what we actually charged. (Skipped for
+    // the local simulator, which doesn't send amount data.)
+    if (success && !local) {
+      const paidGross = Number(body.amount_gross ?? body.amount);
+      const expected = Number(payment.amount);
+      if (!Number.isFinite(paidGross) || Math.abs(paidGross - expected) > 0.01) {
+        console.warn(`[payfast] notify rejected: amount mismatch (paid ${paidGross}, expected ${expected})`);
+        return res.status(400).send('amount mismatch');
+      }
+    }
 
     const newStatus = success ? 'completed' : 'failed';
     const transaction_id = body.pf_payment_id || `PF-${Date.now()}`;
