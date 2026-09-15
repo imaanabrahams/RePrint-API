@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS wishlist (
 -- incremental migrations (safe to re-run — initDB skips duplicate-column errors)
 ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN verification_token VARCHAR(255);
+ALTER TABLE users ADD COLUMN verification_token_expires DATETIME;
 ALTER TABLE users ADD COLUMN reset_token VARCHAR(255);
 ALTER TABLE users ADD COLUMN reset_token_expires DATETIME;
 ALTER TABLE payments MODIFY COLUMN method ENUM('credit_card','debit_card','paypal','stripe','bank_transfer','payfast') NOT NULL;
