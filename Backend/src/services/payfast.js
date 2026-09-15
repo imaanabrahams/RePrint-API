@@ -38,7 +38,7 @@ function buildSignature(fields, passphrase = '') {
   if (passphrase) str += `&passphrase=${phpUrlEncode(passphrase.trim())}`;
 
   return crypto
-    .createHash('sha512')
+    .createHash('md5')
     .update(str)
     .digest('hex');
 }
