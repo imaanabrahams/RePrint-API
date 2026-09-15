@@ -1,0 +1,13 @@
+{
+  "name": "reprint-api-root",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "install:backend": "cd Backend && npm install",
+    "seed:bootstrap": "cd Backend && node src/seeds/bootstrap.js",
+    "start": "cd Backend && npm run start"
+  }
+}
