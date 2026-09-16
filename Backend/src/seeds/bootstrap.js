@@ -5,7 +5,11 @@ import { seedStaff } from './seed-staff.js';
 // Single entry point for provisioning the database on deploy (Railway preDeploy).
 // seed() is idempotent, so it is safe to run on every deploy.
 const bootstrap = async () => {
-  await seed();
+  try {
+    await seed();
+  } catch (err) {
+    console.error('seed() did not complete cleanly:', err.message || err);
+  }
   await seedStaff();
   console.log('Bootstrap complete');
 };
