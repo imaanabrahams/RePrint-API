@@ -339,14 +339,26 @@ export const seed = async () => {
       ['EMP-009', 'Finance Officer', 'hr', '2024-07-15', 47000, 'full_time', 'active', 'Pieter Fourie', '555-0209'],
       ['EMP-010', 'Warehouse Associate', 'production', '2024-09-02', 30000, 'part_time', 'on_leave', 'Gugu Mthembu', '555-0210'],
     ];
+     // Placeholder owner for the employees row before seedStaff() links each
+    // one to its real staff user. Use the actual seeded admin user's id
+    // rather than a hardcoded 1, which may not exist and violates the
+    // employees.user_id FK (aborting the whole seed).
+    const placeholderUserId = userId['admin@reprint.com'];
+    if (!placeholderUserId) {
+      throw new Error('Cannot seed employees: admin@reprint.com user was not seeded');
+    }
     for (const e of employees) {
-      await insertIfMissing(
-        pool,
-        'employees',
-        ['user_id', 'employee_id', 'position', 'department', 'hire_date', 'salary', 'employment_type', 'status', 'emergency_contact', 'emergency_phone'],
-        [1, e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8]],
-        ['employee_id']
-      );
+      try {
+        await insertIfMissing(
+          pool,
+          'employees',
+          ['user_id', 'employee_id', 'position', 'department', 'hire_date', 'salary', 'employment_type', 'status', 'emergency_contact', 'emergency_phone'],
+          [placeholderUserId, e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8]],
+          ['employee_id']
+        );
+      } catch (err) {
+        console.error(`Failed to seed employee ${e[0]}:`, err.message);
+      }
     }
     console.log('Seeded employees');
 
